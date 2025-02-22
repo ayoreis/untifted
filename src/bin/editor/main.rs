@@ -1,7 +1,7 @@
-mod pan_orbit_camera;
+mod orbit_zoom_pan;
 
 use bevy::prelude::*;
-use pan_orbit_camera::*;
+use orbit_zoom_pan::*;
 
 #[derive(Default, Debug)]
 enum PlacementAxis {
@@ -38,10 +38,15 @@ fn main() {
             }),
             ..default()
         }))
-        .add_systems(Startup, (setup, spawn_camera))
+        .add_systems(Startup, setup)
         .add_systems(
             Update,
-            (update_placement_text, update_placement, pan_orbit_camera),
+            (
+                update_placement_text,
+                update_placement,
+                orbit_zoom_pan,
+                draw_gizmos,
+            ),
         )
         .run();
 }
@@ -52,6 +57,12 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_translation(Vec3::splat(5.0)).looking_at(Vec3::ZERO, Vec3::Y),
+        OrbitZoomPanState::default(),
+    ));
+
     commands.spawn((PlacementText, Text::new(format!("{:?}", *placement))));
 
     commands.spawn((
@@ -99,4 +110,13 @@ fn update_placement(input: Res<ButtonInput<KeyCode>>, mut placement: ResMut<Plac
     } else if input.just_pressed(KeyCode::ArrowDown) {
         placement.index -= 1;
     }
+}
+
+fn draw_gizmos(mut gizmos: Gizmos, orbit_zoom_pan_state: Single<&OrbitZoomPanState>) {
+    gizmos.axes(Transform::from_translation(Vec3::ZERO), 10.0);
+
+    gizmos.axes(
+        Transform::from_translation(orbit_zoom_pan_state.origin),
+        1.0,
+    );
 }
