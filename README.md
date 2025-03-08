@@ -1,15 +1,16 @@
 # Untifted
 
-## Editor
+A "Multidimensional metroidvania platformer".
 
-```sh
-$ cargo run --bin editor
-```
+## Keyboard shortcuts
 
+### Game
+
+- `1`/`2`/`3`: Rotate slice 90d in local X/Y/Z axis
+
+### Editor
+
+- `Esc`+`Esc`: Toggle editor (in game)
 - `Middle mouse button`: Orbit
 - `Scrollwheel`: Zoom
-- `Middle mouse button` + `Shift`: Pan
-- `Spacebar`: Toggle placement mode (slice/adjacent)
-- Only in slice placement mode
-	- `1`/`2`/`3`: Rotate slice to X/Y/Z axis
-	- `Arrow up`/`Arrow down`: Move slice
+- `Middle mouse button`+`Shift`: Pan

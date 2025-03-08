@@ -1,24 +1,19 @@
+use super::EditorCamera;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::prelude::*;
 
-#[derive(Component, Default)]
-#[require(Camera3d)]
-pub struct OrbitZoomPanState {
-    pub origin: Vec3,
-}
-
 pub fn orbit_zoom_pan(
-    camera: Single<(&mut OrbitZoomPanState, &mut Transform), With<Camera3d>>,
-    mouse_button_input: Res<ButtonInput<MouseButton>>,
-    keyboard_button_input: Res<ButtonInput<KeyCode>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
     mouse_scroll: Res<AccumulatedMouseScroll>,
+    camera: Single<(&mut EditorCamera, &mut Transform)>,
 ) {
     let (mut state, mut transform) = camera.into_inner();
     let radius = transform.translation.distance(state.origin) * (-mouse_scroll.delta.y).exp();
 
-    if mouse_button_input.pressed(MouseButton::Middle) {
-        if keyboard_button_input.pressed(KeyCode::ShiftLeft) {
+    if mouse.pressed(MouseButton::Middle) {
+        if keyboard.pressed(KeyCode::ShiftLeft) {
             let delta = mouse_motion.delta * 0.001;
 
             if delta != Vec2::ZERO {
