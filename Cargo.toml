@@ -2,10 +2,10 @@
 name = "untifted"
 version = "0.1.0"
 edition = "2021"
-default-run = "untifted"
 
 [dependencies]
-bevy = { version = "0.15.1", features = ["dynamic_linking"] }
+bevy = { version = "0.15.1", features = ["dynamic_linking", "wayland"] }
+bevy_rapier3d = { version = "0.29.0" }
 
 [profile.dev]
 opt-level = 1

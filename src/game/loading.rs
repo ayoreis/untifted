@@ -1,5 +1,9 @@
-use super::GameState;
-use crate::systems::despawn_recursive;
+use super::block::BlockBundle;
+use super::camera::GameCamera;
+use super::data;
+use super::data::{MyTextureAtlasLayout, TextureAtlasMaterial};
+use super::plane;
+use super::player::Player;
 use bevy::prelude::*;
 
 #[derive(Resource)]
@@ -7,35 +11,76 @@ struct LoadingTimer(Timer);
 
 impl Default for LoadingTimer {
     fn default() -> Self {
-        Self(Timer::from_seconds(0.3, TimerMode::Once))
+        Self(Timer::from_seconds(0.5, TimerMode::Once))
     }
 }
 
-#[derive(Component)]
-struct UiRoot;
-
 pub fn plugin(app: &mut App) {
     app.init_resource::<LoadingTimer>()
-        .add_systems(OnEnter(GameState::Loading), spawn_ui)
-        .add_systems(Update, load.run_if(in_state(GameState::Loading)))
-        .add_systems(
-            OnExit(GameState::Loading),
-            despawn_recursive::<With<UiRoot>>,
-        );
+        .add_plugins(data::plugin)
+        .add_systems(OnEnter(super::State::Loading), spawn)
+        .add_systems(Update, load.run_if(in_state(super::State::Loading)));
 }
 
-fn spawn_ui(mut commands: Commands) {
+fn spawn(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    material: Res<TextureAtlasMaterial>,
+    texture_atlas_layout: Res<MyTextureAtlasLayout>,
+    texture_atlas_layouts: Res<Assets<TextureAtlasLayout>>,
+) {
     commands
-        .spawn((UiRoot, Node::default()))
-        .with_child(Text::new("Loading..."));
+        .spawn(plane::Rotation::default())
+        .with_child(GameCamera);
+
+    commands.spawn(BlockBundle::new(
+        &mut *meshes,
+        material.0.clone(),
+        TextureAtlas {
+            layout: texture_atlas_layout.0.clone(),
+            index: 0,
+        },
+        &*texture_atlas_layouts,
+        Vec3::splat(0.0),
+    ));
+
+    commands.spawn(BlockBundle::new(
+        &mut *meshes,
+        material.0.clone(),
+        TextureAtlas {
+            layout: texture_atlas_layout.0.clone(),
+            index: 1,
+        },
+        &*texture_atlas_layouts,
+        Vec3::new(1.0, 0.0, 0.0),
+    ));
+
+    commands.spawn(BlockBundle::new(
+        &mut *meshes,
+        material.0.clone(),
+        TextureAtlas {
+            layout: texture_atlas_layout.0.clone(),
+            index: 2,
+        },
+        &*texture_atlas_layouts,
+        Vec3::new(2.0, 0.0, 0.0),
+    ));
+
+    commands.spawn((
+        Player,
+        Name::new("Player"),
+        Transform::from_xyz(0.0, 3.0, 0.0),
+    ));
 }
 
 fn load(
     time: Res<Time>,
-    mut loading_timer: ResMut<LoadingTimer>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut timer: ResMut<LoadingTimer>,
+    mut next_state: ResMut<NextState<super::State>>,
 ) {
-    if loading_timer.0.tick(time.delta()).finished() {
-        next_state.set(GameState::Playing);
+    timer.0.tick(time.delta());
+
+    if timer.0.finished() {
+        next_state.set(super::State::Playing);
     }
 }

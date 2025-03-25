@@ -1,23 +1,42 @@
+mod block;
+mod camera;
+pub mod data;
 mod loading;
-mod paused;
+mod physics;
+mod plane;
+mod player;
 mod playing;
 
-use super::AppState;
 use bevy::prelude::*;
+use bevy::window::WindowResolution;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, SubStates, Default)]
-#[source(AppState = AppState::Game)]
-enum GameState {
+#[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
+enum State {
     #[default]
     Loading,
     Playing,
-    Paused,
 }
 
+const SCALE: u32 = 5;
+const WIDTH: u32 = 180;
+const HEIGHT: u32 = 180;
+const SCALED_WIDTH: f32 = (WIDTH * SCALE) as f32;
+const SCALED_HEIGHT: f32 = (HEIGHT * SCALE) as f32;
+
 pub fn plugin(app: &mut App) {
-    app.add_sub_state::<GameState>().add_plugins((
-        loading::plugin,
-        playing::plugin,
-        paused::plugin,
-    ));
+    let window_plugin = WindowPlugin {
+        primary_window: Some(Window {
+            title: "Untifted".into(),
+            resolution: WindowResolution::new(SCALED_WIDTH, SCALED_HEIGHT),
+            resizable: false,
+            ..default()
+        }),
+        ..default()
+    };
+
+    let image_plugin = ImagePlugin::default_nearest();
+
+    app.add_plugins(DefaultPlugins.set(window_plugin).set(image_plugin))
+        .init_state::<State>()
+        .add_plugins((loading::plugin, playing::plugin));
 }
