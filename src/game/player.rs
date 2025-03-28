@@ -27,53 +27,53 @@ fn collider() -> Collider {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (update, update2).run_if(in_state(super::State::Playing)),
-    );
+    // app.add_systems(
+    //     Update,
+    //     (update, update2).run_if(in_state(super::State::Playing)),
+    // );
 }
 
 /// Blocks/s
 const PLAYER_SPEED: f32 = 5.0;
 
-fn update(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-    mut kinematic_character_controller: Single<&mut KinematicCharacterController, With<Player>>,
-) {
-    let mut direction = Vec2::ZERO;
+// fn update(
+//     keyboard: Res<ButtonInput<KeyCode>>,
+//     time: Res<Time>,
+//     mut kinematic_character_controller: Single<&mut KinematicCharacterController, With<Player>>,
+// ) {
+//     let mut direction = Vec2::ZERO;
 
-    if keyboard.pressed(KeyCode::KeyW) {
-        direction.y += 1.0;
-    }
+//     if keyboard.pressed(KeyCode::KeyW) {
+//         direction.y += 1.0;
+//     }
 
-    if keyboard.pressed(KeyCode::KeyA) {
-        direction.x -= 1.0;
-    }
+//     if keyboard.pressed(KeyCode::KeyA) {
+//         direction.x -= 1.0;
+//     }
 
-    if keyboard.pressed(KeyCode::KeyS) {
-        direction.y -= 1.0;
-    }
+//     if keyboard.pressed(KeyCode::KeyS) {
+//         direction.y -= 1.0;
+//     }
 
-    if keyboard.pressed(KeyCode::KeyD) {
-        direction.x += 1.0;
-    }
+//     if keyboard.pressed(KeyCode::KeyD) {
+//         direction.x += 1.0;
+//     }
 
-    let speed = PLAYER_SPEED * time.delta_secs();
-    let direction = direction.extend(0.0).normalize_or_zero();
-    let velocity = direction * speed;
+//     let speed = PLAYER_SPEED * time.delta_secs();
+//     let direction = direction.extend(0.0).normalize_or_zero();
+//     let velocity = direction * speed;
 
-    kinematic_character_controller.translation = Some(velocity);
-}
+//     kinematic_character_controller.translation = Some(velocity);
+// }
 
-fn update2(
-    kinematic_character_controller_output: Single<
-        (Option<&KinematicCharacterControllerOutput>, &mut Transform),
-        With<Player>,
-    >,
-) {
-    let (output, mut transform) = kinematic_character_controller_output.into_inner();
-    let Some(output) = output else { return };
+// fn update2(
+//     kinematic_character_controller_output: Single<
+//         (Option<&KinematicCharacterControllerOutput>, &mut Transform),
+//         With<Player>,
+//     >,
+// ) {
+//     let (output, mut transform) = kinematic_character_controller_output.into_inner();
+//     let Some(output) = output else { return };
 
-    transform.translation += output.effective_translation;
-}
+//     transform.translation += output.effective_translation;
+// }

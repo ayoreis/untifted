@@ -1,86 +1,183 @@
 use super::block::BlockBundle;
+use super::block::TILE_SIZE;
 use super::camera::GameCamera;
-use super::data;
-use super::data::{MyTextureAtlasLayout, TextureAtlasMaterial};
+use super::game_loader;
+use super::game_loader::Game;
+use super::level_loader;
+use super::level_loader::Level;
 use super::plane;
-use super::player::Player;
+use bevy::asset::LoadState;
 use bevy::prelude::*;
+use std::env;
+use std::path::PathBuf;
+
+#[derive(SubStates, Default, Debug, Clone, PartialEq, Eq, Hash)]
+#[source(super::State = super::State::Loading)]
+enum State {
+    #[default]
+    Game,
+    Level,
+    Spawn,
+}
 
 #[derive(Resource)]
-struct LoadingTimer(Timer);
+pub struct MyTextureAtlasLayout(pub Handle<TextureAtlasLayout>);
 
-impl Default for LoadingTimer {
-    fn default() -> Self {
-        Self(Timer::from_seconds(0.5, TimerMode::Once))
+impl FromWorld for MyTextureAtlasLayout {
+    fn from_world(world: &mut World) -> Self {
+        let mut texture_atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
+        let texture_atlas = TextureAtlasLayout::from_grid(
+            UVec2::new(TILE_SIZE, TILE_SIZE),
+            TEXTURE_ATLAS_COLUMNS,
+            TEXTURE_ATLAS_ROWS,
+            None,
+            None,
+        );
+        Self(texture_atlas_layouts.add(texture_atlas))
     }
 }
 
+#[derive(Resource)]
+pub struct TextureAtlasImage(pub Handle<Image>);
+
+impl FromWorld for TextureAtlasImage {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.resource::<AssetServer>();
+        Self(asset_server.load("texture-atlas.png"))
+    }
+}
+
+#[derive(Resource)]
+struct BlockMaterial(Handle<StandardMaterial>);
+
+impl FromWorld for BlockMaterial {
+    fn from_world(world: &mut World) -> Self {
+        let image = world.resource::<TextureAtlasImage>().0.clone();
+        let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
+        let material = StandardMaterial {
+            base_color_texture: Some(image),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        };
+        Self(materials.add(material))
+    }
+}
+
+#[derive(Resource)]
+struct LoadingGame(Handle<Game>);
+
+impl FromWorld for LoadingGame {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.resource::<AssetServer>();
+        let home_directory = env::var("HOME").unwrap();
+        let path = PathBuf::from(format!("{home_directory}/{GAME_DIRECTORY}/{GAME_FILE}"));
+        Self(asset_server.load(path))
+    }
+}
+
+#[derive(Resource)]
+struct LoadingLevel(Handle<Level>);
+
+impl FromWorld for LoadingLevel {
+    fn from_world(world: &mut World) -> Self {
+        let games = world.resource::<Assets<Game>>();
+        let game = games.get(&world.resource::<LoadingGame>().0).unwrap();
+        let asset_server = world.resource::<AssetServer>();
+        let file = format!("{level}.json", level = game.level);
+        let path = PathBuf::from(format!("{LEVELS_DIRECTORY}/{file}"));
+        Self(asset_server.load(path))
+    }
+}
+
+pub const TEXTURE_ATLAS_COLUMNS: u32 = 16;
+pub const TEXTURE_ATLAS_ROWS: u32 = 16;
+const GAME_DIRECTORY: &str = ".untifted";
+const GAME_FILE: &str = "game.json";
+const LEVELS_DIRECTORY: &str = "levels";
+
 pub fn plugin(app: &mut App) {
-    app.init_resource::<LoadingTimer>()
-        .add_plugins(data::plugin)
-        .add_systems(OnEnter(super::State::Loading), spawn)
-        .add_systems(Update, load.run_if(in_state(super::State::Loading)));
+    app.add_plugins((game_loader::plugin, level_loader::plugin))
+        .add_sub_state::<State>()
+        .init_resource::<MyTextureAtlasLayout>()
+        .init_resource::<TextureAtlasImage>()
+        .init_resource::<BlockMaterial>()
+        .add_systems(OnEnter(State::Game), load_game)
+        .add_systems(Update, await_game.run_if(in_state(State::Game)))
+        .add_systems(OnEnter(State::Level), load_level)
+        .add_systems(Update, await_level.run_if(in_state(State::Level)))
+        .add_systems(OnEnter(State::Spawn), spawn);
+}
+
+fn load_game(mut commands: Commands) {
+    commands.init_resource::<LoadingGame>();
+}
+
+fn await_game(
+    asset_server: Res<AssetServer>,
+    mut loading_game: ResMut<LoadingGame>,
+    mut games: ResMut<Assets<Game>>,
+    mut next_state: ResMut<NextState<State>>,
+) {
+    let load_state = asset_server.get_load_state(loading_game.0.id()).unwrap();
+
+    match &load_state {
+        LoadState::Loaded => {
+            next_state.set(State::Level);
+        }
+        LoadState::Failed(_error) => {
+            loading_game.0 = games.add(Game::default());
+            next_state.set(State::Level);
+        }
+        _ => (),
+    }
+}
+
+fn load_level(mut commands: Commands) {
+    commands.init_resource::<LoadingLevel>();
+}
+
+fn await_level(
+    asset_server: Res<AssetServer>,
+    loading_level: Res<LoadingLevel>,
+    mut next_state: ResMut<NextState<State>>,
+) {
+    let load_state = asset_server.get_load_state(loading_level.0.id()).unwrap();
+
+    if load_state.is_loaded() {
+        next_state.set(State::Spawn);
+    }
 }
 
 fn spawn(
     mut commands: Commands,
+    levels: Res<Assets<Level>>,
+    loading_level: Res<LoadingLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
-    material: Res<TextureAtlasMaterial>,
-    texture_atlas_layout: Res<MyTextureAtlasLayout>,
     texture_atlas_layouts: Res<Assets<TextureAtlasLayout>>,
-) {
-    commands
-        .spawn(plane::Rotation::default())
-        .with_child(GameCamera);
-
-    commands.spawn(BlockBundle::new(
-        &mut *meshes,
-        material.0.clone(),
-        TextureAtlas {
-            layout: texture_atlas_layout.0.clone(),
-            index: 0,
-        },
-        &*texture_atlas_layouts,
-        Vec3::splat(0.0),
-    ));
-
-    commands.spawn(BlockBundle::new(
-        &mut *meshes,
-        material.0.clone(),
-        TextureAtlas {
-            layout: texture_atlas_layout.0.clone(),
-            index: 1,
-        },
-        &*texture_atlas_layouts,
-        Vec3::new(1.0, 0.0, 0.0),
-    ));
-
-    commands.spawn(BlockBundle::new(
-        &mut *meshes,
-        material.0.clone(),
-        TextureAtlas {
-            layout: texture_atlas_layout.0.clone(),
-            index: 2,
-        },
-        &*texture_atlas_layouts,
-        Vec3::new(2.0, 0.0, 0.0),
-    ));
-
-    commands.spawn((
-        Player,
-        Name::new("Player"),
-        Transform::from_xyz(0.0, 3.0, 0.0),
-    ));
-}
-
-fn load(
-    time: Res<Time>,
-    mut timer: ResMut<LoadingTimer>,
+    texture_atlas_layout: Res<MyTextureAtlasLayout>,
+    block_material: Res<BlockMaterial>,
     mut next_state: ResMut<NextState<super::State>>,
 ) {
-    timer.0.tick(time.delta());
+    commands
+        .spawn((
+            Name::new("Camera plane rotation"),
+            plane::Rotation::default(),
+        ))
+        .with_child(GameCamera);
 
-    if timer.0.finished() {
-        next_state.set(super::State::Playing);
+    let level = levels.get(loading_level.0.id()).unwrap();
+
+    for block in &level.blocks {
+        commands.spawn(BlockBundle::new(
+            &block.translation,
+            &mut meshes,
+            &texture_atlas_layouts,
+            texture_atlas_layout.0.clone(),
+            block.texture_atlas_indices.clone(),
+            block_material.0.clone(),
+        ));
     }
+
+    next_state.set(super::State::Playing);
 }

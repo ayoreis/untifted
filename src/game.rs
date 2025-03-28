@@ -1,7 +1,8 @@
-mod block;
-mod camera;
-pub mod data;
-mod loading;
+pub mod block;
+pub mod camera;
+mod game_loader;
+mod level_loader;
+pub mod loading;
 mod physics;
 mod plane;
 mod player;
@@ -11,7 +12,7 @@ use bevy::prelude::*;
 use bevy::window::WindowResolution;
 
 #[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
-enum State {
+pub enum State {
     #[default]
     Loading,
     Playing,

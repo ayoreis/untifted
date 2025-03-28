@@ -1,0 +1,13 @@
+{
+	"blocks": [
+		{
+			"translation": [0, 0, 0],
+
+			"texture_atlas_indices": {
+				"x": 0,
+				"y": 0,
+				"z": 0
+			}
+		}
+	]
+}

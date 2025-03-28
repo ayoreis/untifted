@@ -1,3 +1,4 @@
+mod editor;
 mod entities;
 mod orbit_zoom_pan_camera;
 mod physics_debug_render;
@@ -31,6 +32,7 @@ pub fn plugin(app: &mut App) {
             orbit_zoom_pan_camera::plugin,
             entities::plugin,
             physics_debug_render::plugin,
+            editor::plugin,
         ));
 }
 

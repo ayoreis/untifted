@@ -3,88 +3,121 @@ use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 use bevy_rapier3d::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize, Component, Clone)]
+pub struct TextureAtlasIndices {
+    /// Right
+    pub x: usize,
+    /// Top
+    pub y: usize,
+    /// Front
+    pub z: usize,
+}
 
 #[derive(Component)]
-struct Block;
+pub struct Block;
 
 #[derive(Bundle)]
 pub struct BlockBundle {
     block: Block,
+    transform: Transform,
     mesh3d: Mesh3d,
+    texture_atlas_indices: TextureAtlasIndices,
     mesh_material3d: MeshMaterial3d<StandardMaterial>,
     collider: Collider,
-    collision_groups: CollisionGroups,
-    transform: Transform,
 }
 
 impl BlockBundle {
     pub fn new(
+        translation: &UVec3,
         meshes: &mut Assets<Mesh>,
-        material: Handle<StandardMaterial>,
-        texture_atlas: TextureAtlas,
         texture_atlas_layouts: &Assets<TextureAtlasLayout>,
-        translation: Vec3,
+        texture_atlas_layout_handle: Handle<TextureAtlasLayout>,
+        texture_atlas_indices: TextureAtlasIndices,
+        material_handle: Handle<StandardMaterial>,
     ) -> Self {
-        let texture_atlas_layout_size = texture_atlas_layouts
-            .get(&texture_atlas.layout)
-            .unwrap()
-            .size
-            .as_vec2();
-
-        let texture: Rect = texture_atlas
-            .texture_rect(texture_atlas_layouts)
-            .unwrap()
-            .as_rect();
-
-        let x_min = texture.min.x / texture_atlas_layout_size.x;
-        let x_max = texture.max.x / texture_atlas_layout_size.x;
-        let y_min = texture.min.y / texture_atlas_layout_size.y;
-        let y_max = texture.max.y / texture_atlas_layout_size.y;
-
-        let mesh = meshes.add(Self::mesh(x_min, x_max, y_min, y_max));
+        let mesh = Self::mesh(
+            texture_atlas_layouts,
+            texture_atlas_layout_handle,
+            &texture_atlas_indices,
+        );
+        let mesh_handle = meshes.add(mesh);
+        let half_extents = SIZE / 2.0;
 
         Self {
             block: Block,
-            mesh3d: Mesh3d(mesh),
-            mesh_material3d: MeshMaterial3d(material),
-            collider: Collider::cuboid(0.5, 0.5, 0.5),
-            collision_groups: CollisionGroups::new(COLLISION_GROUP, COLLISION_FILTER),
-            transform: Transform::from_translation(translation + Vec3::splat(0.5)),
+            transform: Transform::from_translation(translation.as_vec3() + Vec3::splat(0.5)),
+            mesh3d: Mesh3d(mesh_handle),
+            texture_atlas_indices,
+            mesh_material3d: MeshMaterial3d(material_handle),
+            collider: Collider::cuboid(half_extents, half_extents, half_extents),
         }
     }
 
-    fn mesh(x_min: f32, x_max: f32, y_min: f32, y_max: f32) -> Mesh {
-        let min = -0.5;
-        let max = 0.5;
+    fn uv(
+        layouts: &Assets<TextureAtlasLayout>,
+        layout_handle: Handle<TextureAtlasLayout>,
+        index: usize,
+    ) -> [[f32; 2]; 4] {
+        let atlas = TextureAtlas {
+            layout: layout_handle,
+            index,
+        };
 
-        #[rustfmt::skip]
+        let texture_rectangle = atlas.texture_rect(layouts).unwrap().as_rect();
+        let atlas_size = layouts.get(atlas.layout.id()).unwrap().size.as_vec2();
+
+        let x_min = texture_rectangle.min.x / atlas_size.x;
+        let x_max = texture_rectangle.max.x / atlas_size.x;
+        let y_min = texture_rectangle.min.y / atlas_size.y;
+        let y_max = texture_rectangle.max.y / atlas_size.y;
+
+        return [
+            [x_min, y_min],
+            [x_max, y_min],
+            [x_max, y_max],
+            [x_min, y_max],
+        ];
+    }
+
+    pub fn mesh(
+        layouts: &Assets<TextureAtlasLayout>,
+        layout_handle: Handle<TextureAtlasLayout>,
+        indices: &TextureAtlasIndices,
+    ) -> Mesh {
+        let main = 0.0;
+        let cross_min = -0.5;
+        let cross_max = 0.5;
+
         let positions = vec![
-            // X positive
-            [max, max, max], [max, max, min], [max, min, min], [max, min, max],
-            // Y positive
-            [min, max, min], [max, max, min], [max, max, max], [min, max, max],
-            // Z positive
-            [min, max, max], [max, max, max], [max, min, max], [min, min, max],
+            // X
+            [main, cross_max, cross_max],
+            [main, cross_max, cross_min],
+            [main, cross_min, cross_min],
+            [main, cross_min, cross_max],
+            // Y
+            [cross_min, main, cross_min],
+            [cross_max, main, cross_min],
+            [cross_max, main, cross_max],
+            [cross_min, main, cross_max],
+            // Z
+            [cross_min, cross_max, main],
+            [cross_max, cross_max, main],
+            [cross_max, cross_min, main],
+            [cross_min, cross_min, main],
         ];
 
-        #[rustfmt::skip]
-        let uvs = vec![
-            // X positive
-            [x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max],
-            // Y positive
-            [x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max],
-            // Z positive
-            [x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max],
-        ];
+        let uvs = Self::uv(layouts, layout_handle.clone(), indices.x)
+            .into_iter()
+            .chain(Self::uv(layouts, layout_handle.clone(), indices.y))
+            .chain(Self::uv(layouts, layout_handle.clone(), indices.z))
+            .collect::<Vec<_>>();
 
-        #[rustfmt::skip]
         let indices = Indices::U32(vec![
-        	// X positive
-            0, 3, 1, 1, 3, 2,
-            // Y positive
-            4, 7, 5, 5, 7, 6,
-            // Z positive
-            8, 11, 9, 9, 11, 10,
+            0, 3, 1, 1, 3, 2, // X
+            4, 7, 5, 5, 7, 6, // Y
+            8, 11, 9, 9, 11, 10, // Z
         ]);
 
         Mesh::new(
@@ -97,7 +130,6 @@ impl BlockBundle {
     }
 }
 
+const SIZE: f32 = 1.0;
 pub const TILE_SIZE: u32 = 8;
 pub const SCALED_TILE_SIZE: f32 = (TILE_SIZE * SCALE) as f32;
-const COLLISION_GROUP: Group = Group::GROUP_1;
-const COLLISION_FILTER: Group = Group::all();
