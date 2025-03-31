@@ -3,9 +3,9 @@ use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 use bevy_rapier3d::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Component, Clone)]
+#[derive(Deserialize, Component, Clone, Serialize)]
 pub struct TextureAtlasIndices {
     /// Right
     pub x: usize,

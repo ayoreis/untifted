@@ -1,5 +1,5 @@
-mod game_loader;
-mod level_loader;
+pub mod game_loader;
+pub mod level_loader;
 
 use super::block::{BlockBundle, TILE_SIZE};
 use super::camera::GameCamera;
@@ -71,7 +71,7 @@ impl FromWorld for BlockMaterial {
 }
 
 #[derive(Resource)]
-struct LoadingGame(Handle<Game>);
+pub struct LoadingGame(pub Handle<Game>);
 
 const GAME_DIRECTORY: &str = ".untifted";
 const GAME_FILE: &str = "game.json";
@@ -88,7 +88,7 @@ impl FromWorld for LoadingGame {
 #[derive(Resource)]
 struct LoadingLevel(Handle<Level>);
 
-const LEVELS_DIRECTORY: &str = "levels";
+pub const LEVELS_DIRECTORY: &str = "levels";
 
 impl FromWorld for LoadingLevel {
     fn from_world(world: &mut World) -> Self {

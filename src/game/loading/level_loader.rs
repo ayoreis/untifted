@@ -2,17 +2,17 @@ use super::super::block::TextureAtlasIndices;
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext};
 use bevy::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::io;
 use thiserror::Error;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Block {
     pub translation: Vec3,
     pub texture_atlas_indices: TextureAtlasIndices,
 }
 
-#[derive(Asset, TypePath, Deserialize)]
+#[derive(Asset, TypePath, Deserialize, Serialize)]
 pub struct Level {
     pub blocks: Vec<Block>,
 }

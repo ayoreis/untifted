@@ -1,14 +1,20 @@
 use super::super::game;
 use super::super::game::block::Block;
 use super::super::game::camera::GameCamera;
+use super::super::game::loading::game_loader::Game;
+use super::super::game::loading::level_loader;
+use super::super::game::loading::level_loader::Level;
 use super::super::game::loading::{
-    BlockMaterial, MyTextureAtlasLayout, TextureAtlasImage, TEXTURE_ATLAS_COLUMNS,
-    TEXTURE_ATLAS_ROWS,
+    BlockMaterial, LoadingGame, MyTextureAtlasLayout, TextureAtlasImage, LEVELS_DIRECTORY,
+    TEXTURE_ATLAS_COLUMNS, TEXTURE_ATLAS_ROWS,
 };
 use super::super::game::plane::{Rotation, Translation};
 use crate::game::block::{BlockBundle, TextureAtlasIndices};
+use bevy::log::tracing_subscriber::fmt::MakeWriter;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use serde_json::to_writer;
+use std::fs::OpenOptions;
 
 #[derive(Component)]
 #[require(Node(ui_root_node))]
@@ -33,7 +39,8 @@ pub fn plugin(app: &mut App) {
         .add_observer(spawn)
         .add_systems(
             Update,
-            draw.run_if(in_state(super::State::Enabled).and(in_state(game::State::Playing))),
+            (draw, save)
+                .run_if(in_state(super::State::Enabled).and(in_state(game::State::Playing))),
         );
 }
 
@@ -150,7 +157,7 @@ fn draw(
         MeshRayCast,
         (
             ResMut<Assets<Mesh>>,
-            Query<(&mut Mesh3d, &TextureAtlasIndices), With<Block>>,
+            Query<(&mut Mesh3d, &mut TextureAtlasIndices), With<Block>>,
         ),
     )>,
     index: Res<TextureAtlasIndex>,
@@ -180,10 +187,10 @@ fn draw(
         let (entity, hit) = hit.to_owned();
 
         if mouse.pressed(MouseButton::Left) {
-            let (mut meshes, blocks) = param_set.p1();
+            let (mut meshes, mut blocks) = param_set.p1();
 
-            if let Ok((mesh_handle, indices)) = blocks.get(entity) {
-                let indices = match hit.normal.abs() {
+            if let Ok((mesh_handle, mut indices)) = blocks.get_mut(entity) {
+                *indices = match hit.normal.abs() {
                     Vec3::X => TextureAtlasIndices {
                         x: index.0,
                         ..*indices
@@ -200,7 +207,7 @@ fn draw(
                 };
 
                 let mesh = meshes.get_mut(mesh_handle.0.id()).unwrap();
-                *mesh = BlockBundle::mesh(&layouts, layout.0.clone(), &indices);
+                *mesh = BlockBundle::mesh(&layouts, layout.0.clone(), &*indices);
             };
         } else if mouse.pressed(MouseButton::Right) {
             commands.entity(entity).despawn_recursive();
@@ -229,4 +236,37 @@ fn draw(
             material.0.clone(),
         ));
     }
+}
+
+fn save(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    games: Res<Assets<Game>>,
+    game: Res<LoadingGame>,
+    blocks: Query<(&GlobalTransform, &TextureAtlasIndices), With<Block>>,
+) {
+    // Todo: Hardcoded for Dvorak
+    if !(keyboard.pressed(KeyCode::ControlLeft) && keyboard.pressed(KeyCode::KeyM)) {
+        return;
+    }
+
+    let level = Level {
+        blocks: blocks
+            .iter()
+            .map(|(transform, indices)| level_loader::Block {
+                translation: transform.translation() - 0.5,
+                texture_atlas_indices: indices.clone(),
+            })
+            .collect(),
+    };
+
+    let level_file = &games.get(game.0.id()).unwrap().level;
+    let level_path = format!("assets/{LEVELS_DIRECTORY}/{level_file}.json");
+
+    let file = OpenOptions::new()
+        .truncate(true)
+        .write(true)
+        .open(level_path)
+        .unwrap();
+
+    to_writer::<_, Level>(file.make_writer(), &level).unwrap();
 }
