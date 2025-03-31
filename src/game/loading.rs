@@ -1,13 +1,14 @@
-use super::block::BlockBundle;
-use super::block::TILE_SIZE;
+mod game_loader;
+mod level_loader;
+
+use super::block::{BlockBundle, TILE_SIZE};
 use super::camera::GameCamera;
-use super::game_loader;
-use super::game_loader::Game;
-use super::level_loader;
-use super::level_loader::Level;
-use super::plane;
+use super::plane::Rotate;
+use super::player::Player;
 use bevy::asset::LoadState;
 use bevy::prelude::*;
+use game_loader::Game;
+use level_loader::Level;
 use std::env;
 use std::path::PathBuf;
 
@@ -23,9 +24,12 @@ enum State {
 #[derive(Resource)]
 pub struct MyTextureAtlasLayout(pub Handle<TextureAtlasLayout>);
 
+pub const TEXTURE_ATLAS_COLUMNS: u32 = 16;
+pub const TEXTURE_ATLAS_ROWS: u32 = 16;
+
 impl FromWorld for MyTextureAtlasLayout {
     fn from_world(world: &mut World) -> Self {
-        let mut texture_atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
+        let mut layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
         let texture_atlas = TextureAtlasLayout::from_grid(
             UVec2::new(TILE_SIZE, TILE_SIZE),
             TEXTURE_ATLAS_COLUMNS,
@@ -33,7 +37,8 @@ impl FromWorld for MyTextureAtlasLayout {
             None,
             None,
         );
-        Self(texture_atlas_layouts.add(texture_atlas))
+
+        Self(layouts.add(texture_atlas))
     }
 }
 
@@ -48,7 +53,7 @@ impl FromWorld for TextureAtlasImage {
 }
 
 #[derive(Resource)]
-struct BlockMaterial(Handle<StandardMaterial>);
+pub struct BlockMaterial(pub Handle<StandardMaterial>);
 
 impl FromWorld for BlockMaterial {
     fn from_world(world: &mut World) -> Self {
@@ -60,12 +65,16 @@ impl FromWorld for BlockMaterial {
             cull_mode: None,
             ..default()
         };
+
         Self(materials.add(material))
     }
 }
 
 #[derive(Resource)]
 struct LoadingGame(Handle<Game>);
+
+const GAME_DIRECTORY: &str = ".untifted";
+const GAME_FILE: &str = "game.json";
 
 impl FromWorld for LoadingGame {
     fn from_world(world: &mut World) -> Self {
@@ -79,6 +88,8 @@ impl FromWorld for LoadingGame {
 #[derive(Resource)]
 struct LoadingLevel(Handle<Level>);
 
+const LEVELS_DIRECTORY: &str = "levels";
+
 impl FromWorld for LoadingLevel {
     fn from_world(world: &mut World) -> Self {
         let games = world.resource::<Assets<Game>>();
@@ -89,12 +100,6 @@ impl FromWorld for LoadingLevel {
         Self(asset_server.load(path))
     }
 }
-
-pub const TEXTURE_ATLAS_COLUMNS: u32 = 16;
-pub const TEXTURE_ATLAS_ROWS: u32 = 16;
-const GAME_DIRECTORY: &str = ".untifted";
-const GAME_FILE: &str = "game.json";
-const LEVELS_DIRECTORY: &str = "levels";
 
 pub fn plugin(app: &mut App) {
     app.add_plugins((game_loader::plugin, level_loader::plugin))
@@ -125,10 +130,12 @@ fn await_game(
         LoadState::Loaded => {
             next_state.set(State::Level);
         }
+
         LoadState::Failed(_error) => {
             loading_game.0 = games.add(Game::default());
             next_state.set(State::Level);
         }
+
         _ => (),
     }
 }
@@ -154,17 +161,16 @@ fn spawn(
     levels: Res<Assets<Level>>,
     loading_level: Res<LoadingLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
-    texture_atlas_layouts: Res<Assets<TextureAtlasLayout>>,
-    texture_atlas_layout: Res<MyTextureAtlasLayout>,
-    block_material: Res<BlockMaterial>,
+    layouts: Res<Assets<TextureAtlasLayout>>,
+    layout: Res<MyTextureAtlasLayout>,
+    material: Res<BlockMaterial>,
     mut next_state: ResMut<NextState<super::State>>,
 ) {
     commands
-        .spawn((
-            Name::new("Camera plane rotation"),
-            plane::Rotation::default(),
-        ))
+        .spawn((Name::new("Camera plane rotation"), Rotate))
         .with_child(GameCamera);
+
+    commands.spawn((Player, Transform::from_xyz(0.0, 10.0, 0.5)));
 
     let level = levels.get(loading_level.0.id()).unwrap();
 
@@ -172,10 +178,10 @@ fn spawn(
         commands.spawn(BlockBundle::new(
             &block.translation,
             &mut meshes,
-            &texture_atlas_layouts,
-            texture_atlas_layout.0.clone(),
+            &layouts,
+            layout.0.clone(),
             block.texture_atlas_indices.clone(),
-            block_material.0.clone(),
+            material.0.clone(),
         ));
     }
 

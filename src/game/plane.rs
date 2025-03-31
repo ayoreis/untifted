@@ -1,29 +1,21 @@
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
-#[derive(Component)]
-#[require(Transform)]
+#[derive(Resource)]
 pub struct Rotation {
-    pub previous: Option<Quat>,
-    pub next: Quat,
+    previous: Option<Quat>,
+    next: Quat,
     pub transition_timer: Timer,
 }
 
-impl Default for Rotation {
-    fn default() -> Self {
-        let mut transition_timer = Timer::from_seconds(0.5, TimerMode::Once);
-        transition_timer.tick(transition_timer.remaining());
-
-        Self {
-            previous: None,
-            next: Quat::default(),
-            transition_timer,
-        }
-    }
-}
-
 impl Rotation {
-    fn current(&self) -> Quat {
+    pub fn set(&mut self, axis: &Vec3) {
+        self.previous = Some(self.next);
+        self.next *= Quat::from_axis_angle(*axis, FRAC_PI_2);
+        self.transition_timer.reset();
+    }
+
+    pub fn get(&self) -> Quat {
         let Some(previous) = self.previous else {
             return self.next;
         };
@@ -32,45 +24,28 @@ impl Rotation {
     }
 }
 
+const ROTATION_DURATION: f32 = 0.5;
+
+impl Default for Rotation {
+    fn default() -> Self {
+        let mut transition_timer = Timer::from_seconds(ROTATION_DURATION, TimerMode::Once);
+        transition_timer.tick(transition_timer.remaining());
+
+        Self {
+            previous: Option::default(),
+            next: Quat::default(),
+            transition_timer,
+        }
+    }
+}
+
+#[derive(Component, Default)]
+pub struct Translation;
+
+#[derive(Component, Default)]
+#[require(Transform)]
+pub struct Rotate;
+
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (update_rotations, update_transforms).run_if(in_state(super::State::Playing)),
-    );
-}
-
-fn update_rotations(keyboard: Res<ButtonInput<KeyCode>>, mut rotations: Query<&mut Rotation>) {
-    for mut rotation in &mut rotations {
-        if !rotation.transition_timer.finished() {
-            return;
-        }
-
-        let rotations = [
-            (KeyCode::Digit1, Vec3::X),
-            (KeyCode::Digit2, Vec3::Y),
-            (KeyCode::Digit3, Vec3::Z),
-        ];
-
-        for (key, axis) in &rotations {
-            if !keyboard.pressed(*key) {
-                continue;
-            };
-
-            rotation.previous = Some(rotation.next);
-            rotation.next *= Quat::from_axis_angle(*axis, FRAC_PI_2);
-            rotation.transition_timer.reset();
-            break;
-        }
-    }
-}
-
-fn update_transforms(time: Res<Time>, mut planes: Query<(&mut Rotation, &mut Transform)>) {
-    for (mut rotation, mut transform) in &mut planes {
-        if rotation.transition_timer.finished() {
-            return;
-        }
-
-        rotation.transition_timer.tick(time.delta());
-        transform.rotation = rotation.current();
-    }
+    app.init_resource::<Rotation>();
 }

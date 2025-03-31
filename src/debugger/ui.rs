@@ -1,3 +1,5 @@
+use super::editor;
+use super::info;
 use super::window::DebuggerWindow;
 use crate::systems::despawn_recursive;
 use bevy::prelude::*;
@@ -15,7 +17,7 @@ pub fn plugin(app: &mut App) {
         .add_observer(spawn_ui)
         .add_systems(
             OnExit(super::State::Enabled),
-            despawn_recursive::<With<Root>>,
+            despawn_recursive::<Or<(With<UiCamera>, With<Root>)>>,
         );
 }
 
@@ -33,13 +35,19 @@ fn spawn_camera(trigger: Trigger<OnAdd, DebuggerWindow>, mut commands: Commands)
 }
 
 fn spawn_ui(trigger: Trigger<OnAdd, UiCamera>, mut commands: Commands) {
-    commands.spawn((
-        Root,
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            ..default()
-        },
-        TargetCamera(trigger.entity()),
-    ));
+    commands
+        .spawn((
+            Root,
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            TargetCamera(trigger.entity()),
+        ))
+        .with_children(|parent| {
+            parent.spawn(info::UiRoot);
+            parent.spawn(editor::UiRoot);
+        });
 }

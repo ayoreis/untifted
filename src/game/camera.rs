@@ -2,11 +2,15 @@ use super::block::SCALED_TILE_SIZE;
 use bevy::prelude::*;
 
 #[derive(Component)]
-#[require(Camera3d, Name(name), Projection(projection), Transform(transform))]
+#[require(Name(name), Transform(transform), Camera3d, Projection(projection))]
 pub struct GameCamera;
 
 fn name() -> Name {
     Name::new("Camera")
+}
+
+fn transform() -> Transform {
+    Transform::from_xyz(0.0, 0.0, DISTANCE)
 }
 
 fn projection() -> Projection {
@@ -16,6 +20,4 @@ fn projection() -> Projection {
     })
 }
 
-fn transform() -> Transform {
-    Transform::from_xyz(0.0, 0.0, 100.0)
-}
+const DISTANCE: f32 = 100.0;

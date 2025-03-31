@@ -1,4 +1,4 @@
-use super::block::TextureAtlasIndices;
+use super::super::block::TextureAtlasIndices;
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext};
 use bevy::prelude::*;
@@ -8,7 +8,7 @@ use thiserror::Error;
 
 #[derive(Deserialize)]
 pub struct Block {
-    pub translation: UVec3,
+    pub translation: Vec3,
     pub texture_atlas_indices: TextureAtlasIndices,
 }
 

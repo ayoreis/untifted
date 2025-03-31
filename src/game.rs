@@ -1,12 +1,9 @@
 pub mod block;
 pub mod camera;
-mod game_loader;
-mod level_loader;
 pub mod loading;
-mod physics;
-mod plane;
-mod player;
-mod playing;
+pub mod plane;
+pub mod player;
+pub mod playing;
 
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
@@ -18,9 +15,9 @@ pub enum State {
     Playing,
 }
 
-const SCALE: u32 = 5;
 const WIDTH: u32 = 180;
 const HEIGHT: u32 = 180;
+const SCALE: u32 = 5;
 const SCALED_WIDTH: f32 = (WIDTH * SCALE) as f32;
 const SCALED_HEIGHT: f32 = (HEIGHT * SCALE) as f32;
 

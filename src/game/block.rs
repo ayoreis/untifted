@@ -28,9 +28,11 @@ pub struct BlockBundle {
     collider: Collider,
 }
 
+pub const SIZE: f32 = 1.0;
+
 impl BlockBundle {
     pub fn new(
-        translation: &UVec3,
+        translation: &Vec3,
         meshes: &mut Assets<Mesh>,
         texture_atlas_layouts: &Assets<TextureAtlasLayout>,
         texture_atlas_layout_handle: Handle<TextureAtlasLayout>,
@@ -42,43 +44,18 @@ impl BlockBundle {
             texture_atlas_layout_handle,
             &texture_atlas_indices,
         );
+
         let mesh_handle = meshes.add(mesh);
         let half_extents = SIZE / 2.0;
 
         Self {
             block: Block,
-            transform: Transform::from_translation(translation.as_vec3() + Vec3::splat(0.5)),
+            transform: Transform::from_translation(translation + 0.5),
             mesh3d: Mesh3d(mesh_handle),
             texture_atlas_indices,
             mesh_material3d: MeshMaterial3d(material_handle),
             collider: Collider::cuboid(half_extents, half_extents, half_extents),
         }
-    }
-
-    fn uv(
-        layouts: &Assets<TextureAtlasLayout>,
-        layout_handle: Handle<TextureAtlasLayout>,
-        index: usize,
-    ) -> [[f32; 2]; 4] {
-        let atlas = TextureAtlas {
-            layout: layout_handle,
-            index,
-        };
-
-        let texture_rectangle = atlas.texture_rect(layouts).unwrap().as_rect();
-        let atlas_size = layouts.get(atlas.layout.id()).unwrap().size.as_vec2();
-
-        let x_min = texture_rectangle.min.x / atlas_size.x;
-        let x_max = texture_rectangle.max.x / atlas_size.x;
-        let y_min = texture_rectangle.min.y / atlas_size.y;
-        let y_max = texture_rectangle.max.y / atlas_size.y;
-
-        return [
-            [x_min, y_min],
-            [x_max, y_min],
-            [x_max, y_max],
-            [x_min, y_max],
-        ];
     }
 
     pub fn mesh(
@@ -128,8 +105,33 @@ impl BlockBundle {
         .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
         .with_inserted_indices(indices)
     }
+
+    fn uv(
+        layouts: &Assets<TextureAtlasLayout>,
+        layout_handle: Handle<TextureAtlasLayout>,
+        index: usize,
+    ) -> [[f32; 2]; 4] {
+        let atlas = TextureAtlas {
+            layout: layout_handle,
+            index,
+        };
+
+        let texture_rectangle = atlas.texture_rect(layouts).unwrap().as_rect();
+        let atlas_size = layouts.get(atlas.layout.id()).unwrap().size.as_vec2();
+
+        let x_min = texture_rectangle.min.x / atlas_size.x;
+        let x_max = texture_rectangle.max.x / atlas_size.x;
+        let y_min = texture_rectangle.min.y / atlas_size.y;
+        let y_max = texture_rectangle.max.y / atlas_size.y;
+
+        return [
+            [x_min, y_min],
+            [x_max, y_min],
+            [x_max, y_max],
+            [x_min, y_max],
+        ];
+    }
 }
 
-const SIZE: f32 = 1.0;
 pub const TILE_SIZE: u32 = 8;
 pub const SCALED_TILE_SIZE: f32 = (TILE_SIZE * SCALE) as f32;

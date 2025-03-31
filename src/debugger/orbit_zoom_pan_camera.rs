@@ -11,16 +11,15 @@ struct OrbitZoomPanCamera {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        update_camera.run_if(in_state(super::State::Enabled)),
-    )
-    .add_systems(
-        OnExit(super::State::Enabled),
-        despawn_recursive::<With<OrbitZoomPanCamera>>,
-    )
-    .add_observer(spawn_camera);
+    app.add_observer(spawn_camera)
+        .add_systems(Update, update.run_if(in_state(super::State::Enabled)))
+        .add_systems(
+            OnExit(super::State::Enabled),
+            despawn_recursive::<With<OrbitZoomPanCamera>>,
+        );
 }
+
+const STARTING_DISTANCE: f32 = 5.0;
 
 fn spawn_camera(trigger: Trigger<OnAdd, DebuggerWindow>, mut commands: Commands) {
     commands.spawn((
@@ -30,11 +29,15 @@ fn spawn_camera(trigger: Trigger<OnAdd, DebuggerWindow>, mut commands: Commands)
             target: RenderTarget::Window(WindowRef::Entity(trigger.entity())),
             ..default()
         },
-        Transform::from_translation(Vec3::splat(5.0)).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_translation(Vec3::splat(STARTING_DISTANCE)).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
 
-fn update_camera(
+const ORBIT_SENSITIVITY: f32 = 0.005;
+const ZOOM_SESITIVITY: f32 = 1.0;
+const PAN_SENSITIVITY: f32 = 0.001;
+
+fn update(
     keyboard: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
@@ -42,16 +45,18 @@ fn update_camera(
     camera: Single<(&mut OrbitZoomPanCamera, &mut Transform)>,
 ) {
     let (mut camera, mut transform) = camera.into_inner();
-    let radius = transform.translation.distance(camera.origin) * (-mouse_scroll.delta.y).exp();
+    let distance = transform.translation.distance(camera.origin)
+        * (-mouse_scroll.delta.y).exp()
+        * ZOOM_SESITIVITY;
 
     if mouse.pressed(MouseButton::Middle) {
         if keyboard.pressed(KeyCode::ShiftLeft) {
-            let delta = mouse_motion.delta * 0.001;
-            camera.origin += transform.left() * delta.x * radius;
-            camera.origin += transform.up() * delta.y * radius;
+            let delta = mouse_motion.delta * PAN_SENSITIVITY;
+            camera.origin += transform.left() * delta.x * distance;
+            camera.origin += transform.up() * delta.y * distance;
         } else {
-            // TODO upside down bugs
-            let delta = mouse_motion.delta * 0.005;
+            // Todo: upside down bugs
+            let delta = mouse_motion.delta * ORBIT_SENSITIVITY;
             let (mut yaw, mut pitch, roll) = transform.rotation.to_euler(EulerRot::YXZ);
             yaw -= delta.x;
             pitch -= delta.y;
@@ -59,5 +64,5 @@ fn update_camera(
         }
     }
 
-    transform.translation = camera.origin - transform.forward() * radius;
+    transform.translation = camera.origin - transform.forward() * distance;
 }
