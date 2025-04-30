@@ -1,8 +1,7 @@
-use bevy::ecs::query::QueryFilter;
-use bevy::prelude::*;
+use bevy::{ecs::query::QueryFilter, prelude::*};
 
-pub fn despawn_recursive<T: QueryFilter>(mut commands: Commands, entities: Query<Entity, T>) {
-    for entity in &entities {
-        commands.entity(entity).despawn_recursive();
-    }
+pub fn despawn<T: QueryFilter>(mut commands: Commands, entities: Query<Entity, T>) {
+	for entity in &entities {
+		commands.entity(entity).despawn();
+	}
 }

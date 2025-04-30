@@ -1,23 +1,14 @@
-use super::block::SCALED_TILE_SIZE;
-use bevy::prelude::*;
+use super::SCALED_TILE_SIZE;
+use bevy::{core_pipeline::tonemapping::Tonemapping, prelude::*};
 
 #[derive(Component)]
-#[require(Name(name), Transform(transform), Camera3d, Projection(projection))]
+#[require(
+	Camera3d,
+	Projection::Orthographic(OrthographicProjection {
+		scale: 1.0 / SCALED_TILE_SIZE as f32,
+		..OrthographicProjection::default_3d()
+	}),
+	Tonemapping::None,
+	Transform::from_xyz(0.0, 0.0, 16.0)
+)]
 pub struct GameCamera;
-
-fn name() -> Name {
-    Name::new("Camera")
-}
-
-fn transform() -> Transform {
-    Transform::from_xyz(0.0, 0.0, DISTANCE)
-}
-
-fn projection() -> Projection {
-    Projection::from(OrthographicProjection {
-        scale: 1.0 / SCALED_TILE_SIZE,
-        ..OrthographicProjection::default_3d()
-    })
-}
-
-const DISTANCE: f32 = 100.0;
